@@ -150,8 +150,12 @@ def judge(d):
             fails.append("5日線が下向き")
         elif not up10:
             fails.append("10日線が下向き")
-        # またぐ or 20日線の上に載っている = 足全体が20日線より下でなければOK
-        if h < m20:
+        # クロスした地点が20日線より下にあること。
+        # 20日線の上でクロスしたものは上昇局面の継続なので拾わない。
+        if not (ma5.iloc[-1] < m20 and ma10.iloc[-1] < m20):
+            fails.append("20日線より上でクロスした")
+        # その足が下から20日線に届いていること（ヒゲでかすっていればOK）
+        elif h < m20:
             fails.append("20日線より下に離れている")
         if c <= o:
             fails.append("陽線でない")
@@ -162,8 +166,12 @@ def judge(d):
             fails.append("5日線が上向き")
         elif up10:
             fails.append("10日線が上向き")
-        # またぐ or 20日線にぶら下がっている = 足全体が20日線より上でなければOK
-        if l > m20:
+        # クロスした地点が20日線より上にあること。
+        # 20日線の下でクロスしたものは下降局面の継続なので拾わない。
+        if not (ma5.iloc[-1] > m20 and ma10.iloc[-1] > m20):
+            fails.append("20日線より下でクロスした")
+        # その足が上から20日線に届いていること（ヒゲでかすっていればOK）
+        elif l > m20:
             fails.append("20日線より上に離れている")
         if c >= o:
             fails.append("陰線でない")
