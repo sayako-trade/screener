@@ -1,0 +1,54 @@
+name: screener
+
+on:
+  schedule:
+    # GitHub ActionsはUTC。17:00 JST = 08:00 UTC
+    # データの反映待ちに備えて、30分おきに3回試す。
+    # 更新済みならスクリプト側で何もせずに終わる。
+    - cron: '0 8 * * 1-5'
+    - cron: '30 8 * * 1-5'
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch:      # 手動でも実行できるようにする
+    inputs:
+      force:
+        description: '当日分のデータがなくても、最新の日足で実行する（休日の動作確認用）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screener
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: ライブラリを入れる
+        run: pip install -r requirements.txt
+
+      - name: スクリーニング
+        # 手動実行で force にチェックを入れたときだけ --force を付ける。
+        # 定時実行では inputs が空なので、何も付かない。
+        run: python screener.py ${{ inputs.force && '--force' || '' }}
+
+      - name: 結果を反映する
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "更新なし"
+            exit 0
+          fi
+          git config user.name  "screener"
+          git config user.email "screener@users.noreply.github.com"
+          git add docs data
+          git commit -m "screening $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M')"
+          git push

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>条件チェック</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#121A23;
+  --panel:#1A2430;
+  --panel-hi:#212E3C;
+  --rule:#2C3A4A;
+  --ink:#E6ECF2;
+  --dim:#8A9BAC;
+  --dimmer:#5D6E7E;
+  --yang:#E85C42;
+  --yin:#4AA3CE;
+  --star:#E2A93F;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --jp:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP','Yu Gothic',sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ground);color:var(--ink);font-family:var(--jp);
+  font-size:15px;line-height:1.5;
+  padding:0 0 env(safe-area-inset-bottom);
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 64px}
+
+/* ---------- header ---------- */
+header{padding:28px 0 20px;border-bottom:1px solid var(--rule)}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+  color:var(--dimmer);text-transform:uppercase;margin:0 0 10px
+}
+.date{
+  font-family:var(--mono);font-size:38px;font-weight:700;
+  letter-spacing:-.02em;line-height:1;margin:0
+}
+.updated{font-family:var(--mono);font-size:12px;color:var(--dim);margin:10px 0 0}
+
+/* ---------- filters ---------- */
+.filters{border-bottom:1px solid var(--rule)}
+.filters summary{
+  list-style:none;cursor:pointer;padding:14px 0;
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:12px;color:var(--dim);
+}
+.filters summary::-webkit-details-marker{display:none}
+.filters summary::before{content:'▸';color:var(--dimmer);transition:transform .15s}
+.filters[open] summary::before{transform:rotate(90deg)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 0 18px}
+.field{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
+.field label{display:block;font-size:11px;color:var(--dim);margin-bottom:6px}
+.field .row{display:flex;align-items:center;gap:6px}
+.field input{
+  width:100%;min-width:0;background:transparent;border:none;color:var(--ink);
+  font-family:var(--mono);font-size:16px;font-weight:500;padding:0;
+}
+.field input:focus{outline:none}
+.field .row:focus-within{box-shadow:0 1px 0 var(--dim)}
+.field span{font-family:var(--mono);font-size:12px;color:var(--dimmer);flex:none}
+.reset{
+  background:none;border:none;color:var(--dimmer);font-family:var(--mono);
+  font-size:11px;padding:0;cursor:pointer;margin-left:auto;
+}
+
+/* ---------- sections ---------- */
+section{margin-top:32px}
+.shead{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.mark{font-family:var(--mono);font-size:13px;font-weight:700}
+.gc .mark{color:var(--yang)}
+.dc .mark{color:var(--yin)}
+.stitle{font-size:14px;font-weight:600;letter-spacing:.02em}
+.count{font-family:var(--mono);font-size:12px;color:var(--dim);margin-left:auto}
+
+/* ---------- cards ---------- */
+.card{
+  display:block;text-decoration:none;color:inherit;
+  background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--rule);
+  border-radius:8px;padding:13px 15px;margin-bottom:8px;
+  transition:background .12s;
+}
+.card:active{background:var(--panel-hi)}
+.gc .card{border-left-color:var(--yang)}
+.dc .card{border-left-color:var(--yin)}
+.card.star{border-color:rgba(226,169,63,.4);border-left-color:var(--star)}
+.top{display:flex;align-items:baseline;gap:9px;margin-bottom:3px}
+.star-i{color:var(--star);font-size:12px;flex:none;line-height:1.4}
+.code{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--dim);flex:none}
+.name{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nums{display:flex;gap:16px;font-family:var(--mono);font-size:12px;color:var(--dim);margin-bottom:11px}
+.nums b{color:var(--ink);font-weight:500}
+
+/* ---------- signature: レンジ位置レール ---------- */
+.rail{display:flex;align-items:center;gap:10px}
+.track{
+  position:relative;flex:1;height:16px;
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+}
+.zone{position:absolute;top:0;bottom:0;width:20%}
+.gc .zone{left:0;background:linear-gradient(90deg,rgba(232,92,66,.22),rgba(232,92,66,0))}
+.dc .zone{right:0;background:linear-gradient(270deg,rgba(74,163,206,.22),rgba(74,163,206,0))}
+.pin{position:absolute;top:-3px;bottom:-3px;width:2px;transform:translateX(-1px);border-radius:1px}
+.gc .pin{background:var(--yang)}
+.dc .pin{background:var(--yin)}
+.ends{font-family:var(--mono);font-size:10px;color:var(--dimmer);flex:none}
+.pct{font-family:var(--mono);font-size:12px;font-weight:500;flex:none;width:38px;text-align:right}
+
+/* ---------- near miss ---------- */
+.near .card{border-left-color:var(--rule);background:transparent;padding:11px 0;
+  border-radius:0;border-top:none;border-right:none;border-bottom:1px solid var(--rule);border-left:none}
+.near .name{font-weight:500;color:var(--dim)}
+.near .code{font-size:12px}
+.why{font-family:var(--mono);font-size:11px;color:var(--dimmer);margin-top:4px}
+.why em{font-style:normal;color:var(--dim)}
+
+/* ---------- empty ---------- */
+.empty{
+  font-size:14px;color:var(--dim);padding:20px 0;
+  border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+}
+footer{margin-top:40px;font-family:var(--mono);font-size:11px;color:var(--dimmer);line-height:1.7}
+
+@media (max-width:400px){
+  .date{font-size:32px}
+  .fgrid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">5-10 cross screener</p>
+  <h1 class="date">__DATE__</h1>
+  <p class="updated">最終更新 __UPDATED__</p>
+</header>
+
+<details class="filters" id="filters">
+  <summary>絞り込み<button class="reset" id="reset" type="button">初期値に戻す</button></summary>
+  <div class="fgrid">
+    <div class="field">
+      <label for="pmin">株価の下限</label>
+      <div class="row"><input id="pmin" type="number" inputmode="numeric" step="100"><span>円</span></div>
+    </div>
+    <div class="field">
+      <label for="pmax">株価の上限</label>
+      <div class="row"><input id="pmax" type="number" inputmode="numeric" step="100"><span>円</span></div>
+    </div>
+    <div class="field">
+      <label for="tmin">売買代金の下限（20日平均）</label>
+      <div class="row"><input id="tmin" type="number" inputmode="decimal" step="1"><span>億円</span></div>
+    </div>
+    <div class="field">
+      <label for="slow">★をつけるライン</label>
+      <div class="row">
+        <span>安値</span><input id="slow" type="number" inputmode="numeric" step="5">
+        <span>％以下／高値</span><input id="shigh" type="number" inputmode="numeric" step="5"><span>％以上</span>
+      </div>
+    </div>
+  </div>
+</details>
+
+<section class="gc">
+  <div class="shead"><span class="mark">▲</span><span class="stitle">ゴールデンクロス</span><span class="count" id="gc-count"></span></div>
+  <div id="gc-list"></div>
+</section>
+
+<section class="dc">
+  <div class="shead"><span class="mark">▼</span><span class="stitle">デッドクロス</span><span class="count" id="dc-count"></span></div>
+  <div id="dc-list"></div>
+</section>
+
+<section class="near">
+  <div class="shead"><span class="stitle">惜しかった銘柄</span><span class="count" id="near-count"></span></div>
+  <div id="near-list"></div>
+</section>
+
+<footer>
+  条件 ── 5日線と10日線のクロス当日／5日線・10日線の向き／20日線に対する位置／陽線・陰線<br>
+  順位 ── 直近6か月レンジの中の位置（ゴールデンは安値圏、デッドは高値圏が上位）<br>
+  銘柄名をタップするとTradingViewが開きます
+</footer>
+
+</div>
+
+<script>
+const DATA = "__DATA__";
+const TV = "https://jp.tradingview.com/chart/FoGWfuQC/?symbol=TSE%3A";
+const KEY = "screener-settings";
+const DEFAULTS = {pmin:1000, pmax:2000, tmin:10, slow:20, shigh:80};
+
+const $ = id => document.getElementById(id);
+const IDS = Object.keys(DEFAULTS);
+
+function settings(){
+  const s = {};
+  for (const k of IDS){
+    const v = parseFloat($(k).value);
+    s[k] = isNaN(v) ? DEFAULTS[k] : v;
+  }
+  return s;
+}
+
+function load(){
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){}
+  for (const k of IDS) $(k).value = (k in saved) ? saved[k] : DEFAULTS[k];
+}
+
+function save(s){
+  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch(e){}
+}
+
+function card(r, s, near){
+  const star = !near && (r.kind === 'gc' ? r.pos <= s.slow : r.pos >= s.shigh);
+  const a = document.createElement('a');
+  a.className = 'card' + (star ? ' star' : '');
+  a.href = TV + r.code;
+  a.target = '_blank';
+  a.rel = 'noopener';
+
+  const top = `<div class="top">${star ? '<span class="star-i">★</span>' : ''}` +
+    `<span class="code">${r.code}</span><span class="name">${r.name}</span></div>`;
+
+  if (near){
+    a.innerHTML = top + `<div class="why">${r.close.toLocaleString()}円　└ <em>${r.fails.join(' / ')}</em></div>`;
+    return a;
+  }
+
+  a.innerHTML = top +
+    `<div class="nums"><span>終値 <b>${r.close.toLocaleString()}</b>円</span>` +
+    `<span>代金 <b>${r.turnover.toLocaleString()}</b>億</span></div>` +
+    `<div class="rail"><span class="ends">安値</span>` +
+    `<span class="track"><span class="zone"></span>` +
+    `<span class="pin" style="left:${Math.max(0, Math.min(100, r.pos))}%"></span></span>` +
+    `<span class="ends">高値</span><span class="pct">${r.pos}%</span></div>`;
+  return a;
+}
+
+function fill(el, rows, s, near){
+  el.innerHTML = '';
+  if (!rows.length){
+    const p = document.createElement('p');
+    p.className = 'empty';
+    p.textContent = near
+      ? '惜しかった銘柄もありません。'
+      : '条件に一致した銘柄はありません。絞り込みをゆるめると増えます。';
+    el.appendChild(p);
+    return;
+  }
+  rows.forEach(r => el.appendChild(card(r, s, near)));
+}
+
+function render(){
+  const s = settings();
+  save(s);
+
+  const pool = DATA.filter(r =>
+    r.close >= s.pmin && r.close <= s.pmax && r.turnover >= s.tmin);
+
+  const gc = pool.filter(r => r.matched && r.kind === 'gc').sort((a,b) => a.pos - b.pos);
+  const dc = pool.filter(r => r.matched && r.kind === 'dc').sort((a,b) => b.pos - a.pos);
+  const near = pool.filter(r => !r.matched)
+    .sort((a,b) => a.fails.length - b.fails.length || b.turnover - a.turnover)
+    .slice(0, 10);
+
+  fill($('gc-list'), gc, s, false);
+  fill($('dc-list'), dc, s, false);
+  fill($('near-list'), near, s, true);
+
+  $('gc-count').textContent = gc.length + '件';
+  $('dc-count').textContent = dc.length + '件';
+  $('near-count').textContent = near.length + '件';
+}
+
+load();
+render();
+IDS.forEach(k => $(k).addEventListener('input', render));
+$('reset').addEventListener('click', e => {
+  e.preventDefault();
+  for (const k of IDS) $(k).value = DEFAULTS[k];
+  render();
+});
+</script>
+</body>
+</html>
