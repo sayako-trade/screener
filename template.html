@@ -161,10 +161,9 @@ footer{margin-top:40px;font-family:var(--mono);font-size:11px;color:var(--dimmer
       <div class="row"><input id="tmin" type="number" inputmode="decimal" step="1"><span>億円</span></div>
     </div>
     <div class="field">
-      <label for="slow">★をつけるライン</label>
+      <label for="sfar">★をつけるライン</label>
       <div class="row">
-        <span>安値</span><input id="slow" type="number" inputmode="numeric" step="5">
-        <span>％以下／高値</span><input id="shigh" type="number" inputmode="numeric" step="5"><span>％以上</span>
+        <span>3本の幅</span><input id="sfar" type="number" inputmode="decimal" step="0.1"><span>％以下</span>
       </div>
     </div>
   </div>
@@ -186,8 +185,8 @@ footer{margin-top:40px;font-family:var(--mono);font-size:11px;color:var(--dimmer
 </section>
 
 <footer>
-  条件 ── 5日線と10日線のクロス当日／5日線・10日線の向き／20日線に対する位置／陽線・陰線<br>
-  順位 ── 直近6か月レンジの中の位置（ゴールデンは安値圏、デッドは高値圏が上位）<br>
+  条件 ── 5日線と10日線のクロス当日／5日線・10日線の向き／20日線に触れている／陽線・陰線／5日線・10日線・20日線が接近<br>
+  順位 ── 3本の線が近い順（近さ＝3本の幅が終値の何％か）。安値・高値のバーは参考<br>
   銘柄名をタップするとTradingViewが開きます
 </footer>
 
@@ -197,7 +196,7 @@ footer{margin-top:40px;font-family:var(--mono);font-size:11px;color:var(--dimmer
 const DATA = "__DATA__";
 const TV = "https://jp.tradingview.com/chart/FoGWfuQC/?symbol=TSE%3A";
 const KEY = "screener-settings";
-const DEFAULTS = {pmin:1000, pmax:2000, tmin:10, slow:20, shigh:80};
+const DEFAULTS = {pmin:500, pmax:10000, tmin:1, sfar:0.5};
 
 const $ = id => document.getElementById(id);
 const IDS = Object.keys(DEFAULTS);
@@ -222,7 +221,7 @@ function save(s){
 }
 
 function card(r, s, near){
-  const star = !near && (r.kind === 'gc' ? r.pos <= s.slow : r.pos >= s.shigh);
+  const star = !near && r.spread <= s.sfar;
   const a = document.createElement('a');
   a.className = 'card' + (star ? ' star' : '');
   a.href = TV + r.code;
@@ -239,7 +238,8 @@ function card(r, s, near){
 
   a.innerHTML = top +
     `<div class="nums"><span>終値 <b>${r.close.toLocaleString()}</b>円</span>` +
-    `<span>代金 <b>${r.turnover.toLocaleString()}</b>億</span></div>` +
+    `<span>代金 <b>${r.turnover.toLocaleString()}</b>億</span>` +
+    `<span>近さ <b>${r.spread}</b>%</span></div>` +
     `<div class="rail"><span class="ends">安値</span>` +
     `<span class="track"><span class="zone"></span>` +
     `<span class="pin" style="left:${Math.max(0, Math.min(100, r.pos))}%"></span></span>` +
@@ -268,8 +268,8 @@ function render(){
   const pool = DATA.filter(r =>
     r.close >= s.pmin && r.close <= s.pmax && r.turnover >= s.tmin);
 
-  const gc = pool.filter(r => r.matched && r.kind === 'gc').sort((a,b) => a.pos - b.pos);
-  const dc = pool.filter(r => r.matched && r.kind === 'dc').sort((a,b) => b.pos - a.pos);
+  const gc = pool.filter(r => r.matched && r.kind === 'gc').sort((a,b) => a.spread - b.spread);
+  const dc = pool.filter(r => r.matched && r.kind === 'dc').sort((a,b) => a.spread - b.spread);
   const near = pool.filter(r => !r.matched)
     .sort((a,b) => a.fails.length - b.fails.length || b.turnover - a.turnover)
     .slice(0, 10);

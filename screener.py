@@ -46,6 +46,7 @@ JPX_URL = (
 TICKER_MAX_AGE_DAYS = 30   # 銘柄一覧を取り直す間隔
 CHUNK = 150                # yfinanceに一度に投げる銘柄数
 RANGE_DAYS = 120           # 高値安値レンジの期間（約6か月）
+MAX_SPREAD = 1.0           # 5日線・10日線・20日線の幅の上限（終値に対する％）
 TURNOVER_DAYS = 20         # 売買代金の平均を取る日数
 PROBE = ["7203.T", "8306.T", "9432.T"]   # データ更新チェック用
 RETRIES = 3                # 1チャンクあたりの取得リトライ回数
@@ -77,7 +78,9 @@ def load_tickers():
     tickers = {}
     for code, name in zip(df["コード"], df["銘柄名"]):
         code = str(code).strip()
-        if code and code.lower() != "nan":
+        # 普通株のコードは4桁。5桁は優先株や社債型種類株で、
+        # ほとんど値動きしないぶん移動平均が張り付いて誤検知するので外す。
+        if len(code) == 4 and code.lower() != "nan":
             tickers[code] = str(name).strip()
 
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -135,6 +138,8 @@ def judge(d):
     h = float(d["High"].iloc[-1])
     l = float(d["Low"].iloc[-1])
     c = float(close.iloc[-1])
+    m5 = float(ma5.iloc[-1])
+    m10 = float(ma10.iloc[-1])
     m20 = float(ma20.iloc[-1])
 
     up5 = ma5.iloc[-1] > ma5.iloc[-2]
@@ -150,12 +155,8 @@ def judge(d):
             fails.append("5日線が下向き")
         elif not up10:
             fails.append("10日線が下向き")
-        # クロスした地点が20日線より下にあること。
-        # 20日線の上でクロスしたものは上昇局面の継続なので拾わない。
-        if not (ma5.iloc[-1] < m20 and ma10.iloc[-1] < m20):
-            fails.append("20日線より上でクロスした")
-        # その足が下から20日線に届いていること（ヒゲでかすっていればOK）
-        elif h < m20:
+        # またぐ or 20日線の上に載っている = 足全体が20日線より下でなければOK
+        if h < m20:
             fails.append("20日線より下に離れている")
         if c <= o:
             fails.append("陽線でない")
@@ -166,15 +167,17 @@ def judge(d):
             fails.append("5日線が上向き")
         elif up10:
             fails.append("10日線が上向き")
-        # クロスした地点が20日線より上にあること。
-        # 20日線の下でクロスしたものは下降局面の継続なので拾わない。
-        if not (ma5.iloc[-1] > m20 and ma10.iloc[-1] > m20):
-            fails.append("20日線より下でクロスした")
-        # その足が上から20日線に届いていること（ヒゲでかすっていればOK）
-        elif l > m20:
+        # またぐ or 20日線にぶら下がっている = 足全体が20日線より上でなければOK
+        if l > m20:
             fails.append("20日線より上に離れている")
         if c >= o:
             fails.append("陰線でない")
+
+    # --- 5日線・10日線・20日線が接近しているか
+    # 3本のうち一番上と一番下の幅が、終値の何％か。小さいほど収束している。
+    spread = (max(m5, m10, m20) - min(m5, m10, m20)) / c * 100
+    if spread > MAX_SPREAD:
+        fails.append("3本の線が離れている")
 
     # --- 直近6か月レンジの中の位置（0%が安値、100%が高値）
     window = d.iloc[-RANGE_DAYS:]
@@ -189,6 +192,7 @@ def judge(d):
     return {
         "kind": kind,
         "close": round(c, 1),
+        "spread": round(spread, 2),
         "pos": round(pos, 1),
         "turnover": round(turnover, 1),
         "matched": len(fails) == 0,
